@@ -39,6 +39,13 @@ module type S = {
   let bfs: tree(v) => stream(v);
   let empty: unit => tree(v);
   let add: (tree(v), v) => tree(v);
+  /**
+  I don't know how to constraint the type variable 'a to be Comparable,
+  without knowing its concrete type of at the time the module is created.
+  My only consolation is that to operate on tree('a) you need to create a Module with Make.
+  You can only do this if the 'a is a comparable type.
+  */
+  let fmap: (v => 'a, tree(v)) => tree('a);
 };
 
 module Make = (Node: Comparable) : (S with type v := Node.t) => {
@@ -115,6 +122,15 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
         | GT => Node(left, aux(right), v)
         | EQ => Node(left, right, v)
         };
+
+    aux(root);
+  };
+
+  let fmap = (f, root) => {
+    let rec aux =
+      fun
+      | Nil => Nil
+      | Node(left, right, v) => Node(aux(left), aux(right), f(v));
 
     aux(root);
   };
