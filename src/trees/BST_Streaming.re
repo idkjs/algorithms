@@ -30,103 +30,92 @@ module type Comparable = {type t; let compare: (t, t) => ord;};
 
 module type S = {
   type v;
-  type node;
+  type tree('v);
 
-  let preorder: node => stream(v);
-  let inorder: node => stream(v);
-  let postorder: node => stream(v);
-  let dfs: node => stream(v);
-  let bfs: node => stream(v);
-  let empty: unit => node;
-  let add: (node, v) => node;
+  let preorder: tree(v) => stream(v);
+  let inorder: tree(v) => stream(v);
+  let postorder: tree(v) => stream(v);
+  let dfs: tree(v) => stream(v);
+  let bfs: tree(v) => stream(v);
+  let empty: unit => tree(v);
+  let add: (tree(v), v) => tree(v);
 };
 
 module Make = (Node: Comparable) : (S with type v := Node.t) => {
-  type node =
+  type node('v) =
     | Nil
-    | Node(node, node, Node.t);
+    | Node(node('v), node('v), 'v);
 
-  let preorder: node => stream(Node.t) =
-    node => {
-      let rec aux: (~frontier: list(node)) => stream(Node.t) =
-        (~frontier) =>
-          switch (frontier) {
-          | [] => Empty
-          | [h, ...tail] =>
-            switch (h) {
-            | Nil => aux(~frontier=tail)
-            | Node(l, r, v) =>
-              Cons(v, delay(aux(~frontier=[l, r, ...tail])))
-            }
-          };
+  type tree('v) = node('v);
 
-      aux(~frontier=[node]);
-    };
+  let preorder = node => {
+    let rec aux = (~frontier) =>
+      switch (frontier) {
+      | [] => Empty
+      | [h, ...tail] =>
+        switch (h) {
+        | Nil => aux(~frontier=tail)
+        | Node(l, r, v) => Cons(v, delay(aux(~frontier=[l, r, ...tail])))
+        }
+      };
 
-  let inorder: node => stream(Node.t) =
-    node => {
-      let rec aux: (~frontier: list(either(node, Node.t))) => stream(Node.t) =
-        (~frontier) =>
-          switch (frontier) {
-          | [] => Empty
-          | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
-          | [Left(Nil), ...tail] => aux(~frontier=tail)
-          | [Left(Node(l, r, v)), ...tail] =>
-            aux(~frontier=[Left(l), Right(v), Left(r), ...tail])
-          };
+    aux(~frontier=[node]);
+  };
 
-      aux(~frontier=[Left(node)]);
-    };
+  let inorder = node => {
+    let rec aux = (~frontier) =>
+      switch (frontier) {
+      | [] => Empty
+      | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
+      | [Left(Nil), ...tail] => aux(~frontier=tail)
+      | [Left(Node(l, r, v)), ...tail] =>
+        aux(~frontier=[Left(l), Right(v), Left(r), ...tail])
+      };
 
-  let postorder: node => stream(Node.t) =
-    node => {
-      let rec aux: (~frontier: list(either(node, Node.t))) => stream(Node.t) =
-        (~frontier) =>
-          switch (frontier) {
-          | [] => Empty
-          | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
-          | [Left(Nil), ...tail] => aux(~frontier=tail)
-          | [Left(Node(l, r, v)), ...tail] =>
-            aux(~frontier=[Left(l), Left(r), Right(v), ...tail])
-          };
+    aux(~frontier=[Left(node)]);
+  };
 
-      aux(~frontier=[Left(node)]);
-    };
+  let postorder = node => {
+    let rec aux = (~frontier) =>
+      switch (frontier) {
+      | [] => Empty
+      | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
+      | [Left(Nil), ...tail] => aux(~frontier=tail)
+      | [Left(Node(l, r, v)), ...tail] =>
+        aux(~frontier=[Left(l), Left(r), Right(v), ...tail])
+      };
+
+    aux(~frontier=[Left(node)]);
+  };
 
   let dfs = preorder;
 
-  let bfs: node => stream(Node.t) =
-    node => {
-      let rec aux: (~curr: list(node), ~next: list(node)) => stream(Node.t) =
-        (~curr, ~next) =>
-          switch (curr, next) {
-          | ([], []) => Empty
-          | ([], _) => aux(~curr=next, ~next=[])
-          | ([Nil, ...tail], _) => aux(~curr=tail, ~next)
-          | ([Node(left, right, value), ...tail], _) =>
-            Cons(
-              value,
-              delay(aux(~curr=tail, ~next=[left, right, ...next])),
-            )
-          };
+  let bfs = node => {
+    let rec aux = (~curr, ~next) =>
+      switch (curr, next) {
+      | ([], []) => Empty
+      | ([], _) => aux(~curr=next, ~next=[])
+      | ([Nil, ...tail], _) => aux(~curr=tail, ~next)
+      | ([Node(left, right, value), ...tail], _) =>
+        Cons(value, delay(aux(~curr=tail, ~next=[left, right, ...next])))
+      };
 
-      aux(~curr=[node], ~next=[]);
-    };
+    aux(~curr=[node], ~next=[]);
+  };
 
   let empty = () => Nil;
 
-  let add: (node, Node.t) => node =
-    (root, x) => {
-      let rec aux =
-        fun
-        | Nil => Node(Nil, Nil, x)
-        | Node(left, right, v) =>
-          switch (Node.compare(x, v)) {
-          | LT => Node(aux(left), right, v)
-          | GT => Node(left, aux(right), v)
-          | EQ => Node(left, right, v)
-          };
+  let add = (root, x) => {
+    let rec aux =
+      fun
+      | Nil => Node(Nil, Nil, x)
+      | Node(left, right, v) =>
+        switch (Node.compare(x, v)) {
+        | LT => Node(aux(left), right, v)
+        | GT => Node(left, aux(right), v)
+        | EQ => Node(left, right, v)
+        };
 
-      aux(root);
-    };
+    aux(root);
+  };
 };
