@@ -49,11 +49,11 @@ module type S = {
 };
 
 module Make = (Node: Comparable) : (S with type v := Node.t) => {
-  type node('v) =
+  type node('v, 'f) =
     | Nil
-    | Node(node('v), node('v), 'v);
+    | Node(node('v, 'f), node('v, 'f), 'v, 'f);
 
-  type tree('v) = node('v);
+  type tree('v) = node('v, unit);
 
   let preorder = node => {
     let rec aux = (~frontier) =>
@@ -62,7 +62,8 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
       | [h, ...tail] =>
         switch (h) {
         | Nil => aux(~frontier=tail)
-        | Node(l, r, v) => Cons(v, delay(aux(~frontier=[l, r, ...tail])))
+        | Node(l, r, v, _) =>
+          Cons(v, delay(aux(~frontier=[l, r, ...tail])))
         }
       };
 
@@ -75,7 +76,7 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
       | [] => Empty
       | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
       | [Left(Nil), ...tail] => aux(~frontier=tail)
-      | [Left(Node(l, r, v)), ...tail] =>
+      | [Left(Node(l, r, v, _)), ...tail] =>
         aux(~frontier=[Left(l), Right(v), Left(r), ...tail])
       };
 
@@ -88,7 +89,7 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
       | [] => Empty
       | [Right(v), ...tail] => Cons(v, delay(aux(~frontier=tail)))
       | [Left(Nil), ...tail] => aux(~frontier=tail)
-      | [Left(Node(l, r, v)), ...tail] =>
+      | [Left(Node(l, r, v, _)), ...tail] =>
         aux(~frontier=[Left(l), Left(r), Right(v), ...tail])
       };
 
@@ -103,7 +104,7 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
       | ([], []) => Empty
       | ([], _) => aux(~curr=next, ~next=[])
       | ([Nil, ...tail], _) => aux(~curr=tail, ~next)
-      | ([Node(left, right, value), ...tail], _) =>
+      | ([Node(left, right, value, _), ...tail], _) =>
         Cons(value, delay(aux(~curr=tail, ~next=[left, right, ...next])))
       };
 
@@ -115,12 +116,12 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
   let add = (root, x) => {
     let rec aux =
       fun
-      | Nil => Node(Nil, Nil, x)
-      | Node(left, right, v) =>
+      | Nil => Node(Nil, Nil, x, ())
+      | Node(left, right, v, ()) =>
         switch (Node.compare(x, v)) {
-        | LT => Node(aux(left), right, v)
-        | GT => Node(left, aux(right), v)
-        | EQ => Node(left, right, v)
+        | LT => Node(aux(left), right, v, ())
+        | GT => Node(left, aux(right), v, ())
+        | EQ => Node(left, right, v, ())
         };
 
     aux(root);
@@ -130,7 +131,7 @@ module Make = (Node: Comparable) : (S with type v := Node.t) => {
     let rec aux =
       fun
       | Nil => Nil
-      | Node(left, right, v) => Node(aux(left), aux(right), f(v));
+      | Node(left, right, v, _) => Node(aux(left), aux(right), f(v), ());
 
     aux(root);
   };
