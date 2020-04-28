@@ -1,4 +1,4 @@
-module Array = Basic_DynamicArray;
+module Array = DynamicArray;
 
 type heapElement('a, 'b) = {
     key: 'a,
@@ -87,6 +87,46 @@ let extract = ({queue, compare}) => {
 let add = (heap, key, value) => {
     Array.push(heap.queue, {key, value});
     fix_last(heap);
+};
+
+let search = ({queue, _}, match) => {
+    let size = Array.length(queue);
+
+    let rec checkSuffix = ind => {
+        switch ind {
+        | ind when (ind == size) => None;
+        | _ => {
+            let elem = Array.get(queue, ind);
+            if (match(elem.key, elem.value)) {
+                Some(ind);
+            } else {
+                checkSuffix(ind + 1);    
+            };
+        };
+        };
+    };
+    checkSuffix(0);
+};
+
+exception RemoveElementNotFound;
+
+let remove = ({queue, compare}, match) => {
+    let index = search({queue, compare}, match);
+    switch index {
+    | None => raise(RemoveElementNotFound);
+    | Some(index) => {
+        let size = Array.length(queue);
+        Array.swap(queue, index, size - 1);
+        let res = Array.pop(queue);
+        sift_down({queue, compare}, index);
+        res.value;
+    };
+    };
+};
+
+let update = ({queue, compare}, match, new_key, new_value) => {
+    remove({queue, compare}, match);
+    add({queue, compare}, new_key, new_value);
 };
 
 let head = ({queue}) => {
